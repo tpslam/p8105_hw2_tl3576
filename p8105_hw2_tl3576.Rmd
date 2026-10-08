@@ -1,0 +1,152 @@
+---
+title: "Homework 2"
+output: github_document
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+# Problem 1
+
+```{r}
+nyc_transit_df =
+  read_csv("data/NYC_Transit_Subway_Entrance_And_Exit_Data.csv", na = "") |> 
+  janitor::clean_names() |> 
+  select(line:entry, vending, ada) |> 
+  mutate(entry = case_match(
+    entry,
+    "YES" ~ TRUE,
+    "NO" ~ FALSE
+    )
+  )
+```
+
+# Problem 2
+
+```{r}
+mr_trash_df =
+  read_excel(
+    "data/202610 Trash Wheel Collection Data.xlsx",
+    sheet = 1,
+    skip = 1,
+    range = cell_cols("A:N")
+  ) |> 
+  janitor::clean_names() |> 
+  filter(dumpster > 0) |> 
+  mutate(
+    homes_powered = (weight_tons*500)/30,
+    sports_balls = as.integer(round(sports_balls)),
+    trash_wheel = "mr",
+    year = as.numeric(year)
+  )
+```
+
+```{r}
+professor_trash_df =
+  read_excel(
+    "data/202610 Trash Wheel Collection Data.xlsx",
+    sheet = 2,
+    skip = 1,
+    range = cell_cols("A:M")
+  ) |> 
+  janitor::clean_names() |> 
+  filter(dumpster > 0) |> 
+  mutate(
+    homes_powered = (weight_tons*500)/30,
+    trash_wheel = "professor",
+    plastic_bottles = as.numeric(plastic_bottles)
+  )
+```
+
+```{r}
+gwynnda_df =
+  read_excel(
+    "data/202610 Trash Wheel Collection Data.xlsx",
+    sheet = 4,
+    skip = 1,
+    range = cell_cols("A:L"),
+  ) |> 
+  janitor::clean_names() |> 
+  filter(dumpster > 0) |> 
+  mutate(
+    homes_powered = (weight_tons*500)/30,
+    trash_wheel = "gwynnda"
+  )
+```
+
+```{r}
+trash_wheel_df =
+  bind_rows(mr_trash_df, professor_trash_df, gwynnda_df) |> 
+  relocate(trash_wheel)
+```
+
+In the Trash Wheel dataset, there are `r nrow(trash_wheel_df)` observations across three trash wheels. Mr. Trash Wheel has `r nrow(mr_trash_df)` observations, Professor Trash Wheel has `r nrow(professor_trash_df)` observations, and Gwynnda the Good Wheel has `r nrow(gwynnda_df)` observations. Key variables in the Trash Wheel dataset include `trash_wheel`, `year`, `weight_tons`, `volume_cubic_yards`, and `homes_powered`. Data spans from `r min(trash_wheel_df$year)` to `r max(trash_wheel_df$year)`. On average, the trash wheels collected `r round(mean(trash_wheel_df$weight_tons), 2)` tons of trash and `r round(mean(trash_wheel_df$volume_cubic_yards), 2)` cubic yards of volume per dumpster, enough to power an estimated `r round(mean(trash_wheel_df$homes_powered))` homes for a day.
+
+The total weight of trash collected by Professor Trash Wheel is `r sum(professor_trash_df$weight_tons)` tons.
+
+The total number of cigarette butts collected by Gwynnda the Good Wheel in June of 2022 is `r sum(filter(gwynnda_df, year == 2022, month == "June")$cigarette_butts)` cigarette butts.
+
+# Problem 3
+
+```{r}
+baseline_df =
+  read_csv(
+    "data/MCI_baseline.csv",
+    skip = 1,
+    na = "."
+  ) |> 
+  janitor::clean_names() |> 
+  mutate(
+    sex = case_match(
+      sex,
+      1 ~ "male",
+      0 ~ "female"
+    ),
+    apoe4 = case_match(
+      apoe4,
+      1 ~ "carrier",
+      0 ~ "non-carrier"
+    )
+  ) |> 
+  rename(study_id = id) |> 
+  filter(age_at_onset > current_age | is.na(age_at_onset))
+```
+
+When importing the baseline dataset, I skipped the first row and treated periods as missing values. Then, I recoded sex and APOE4 status to the appropriate labels. To meet the inclusion criteria of no MCI at baseline, I excluded participants whose age at onset was at or before their age at baseline, retaining those who developed MCI after baseline or remained MCI-free during follow-up.
+
+After cleaning the dataset, there are `r nrow(baseline_df)` participants. Of these, `r sum(!is.na(baseline_df$age_at_onset))` (`r round(mean(!is.na(baseline_df$age_at_onset)) * 100, 2)`%) developed MCI. On average, the baseline age was `r round(mean(baseline_df$current_age))` years. Among women, the proportion of those who were APOE4 carriers was `r round(nrow(filter(baseline_df, sex == "female", apoe4 == "carrier")) / nrow(filter(baseline_df, sex == "female")), 2)`.
+
+```{r}
+amyloid_df =
+  read_csv(
+    "data/mci_amyloid.csv",
+    skip = 1,
+    na = c("NA", "Na")
+  ) |> 
+  janitor::clean_names() |> 
+  pivot_longer(
+    baseline:time_8,
+    names_to = "year",
+    names_prefix = "time_",
+    values_to = "amyloid_ratio"
+  ) |> 
+  mutate(
+    year = replace(year, year == "baseline", "0"),
+    year = as.numeric(year)
+  )
+```
+
+When importing the amyloid dataset, I skipped the first row and treated Na and NA as missing values. I used the `pivot_longer()` function to reshape the data from wide to long format because visits were spread across multiple columns. Then, I recoded baseline to 0 and converted year to a numeric variable. 
+
+```{r}
+mci_df =
+  left_join(baseline_df, amyloid_df, by = "study_id")
+```
+
+There were `r length(unique(mci_df$study_id))` participants who appeared in both the baseline and amyloid datasets. Key variables in the MCI dataset include `study_id`, `age_at_onset`, `year`, and `amyloid_ratio`. Among participants who developed MCI, the mean age at onset was `r round(mean(mci_df$age_at_onset, na.rm = TRUE))` years. The average amyloid ratio was `r round(mean(filter(mci_df, year == 0)$amyloid_ratio, na.rm = TRUE), 3)` at baseline, `r round(mean(filter(mci_df, year == 2)$amyloid_ratio, na.rm = TRUE), 3)` at year 2, `r round(mean(filter(mci_df, year == 4)$amyloid_ratio, na.rm = TRUE), 3)` at year 4, `r round(mean(filter(mci_df, year == 6)$amyloid_ratio, na.rm = TRUE), 3)` at year 6, and `r round(mean(filter(mci_df, year == 8)$amyloid_ratio, na.rm = TRUE), 3)` at year 8.
+
+```{r}
+write_csv(mci_df, "data/mci_df.csv")
+```
