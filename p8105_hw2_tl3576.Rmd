@@ -116,7 +116,7 @@ baseline_df =
 
 When importing the baseline dataset, I skipped the first row and treated periods as missing values. Then, I recoded sex and APOE4 status to the appropriate labels. To meet the inclusion criteria of no MCI at baseline, I excluded participants whose age at onset was at or before their age at baseline, retaining those who developed MCI after baseline or remained MCI-free during follow-up.
 
-After cleaning the dataset, there are `r nrow(baseline_df)` participants. Of these, `r sum(!is.na(baseline_df$age_at_onset))` (`r round(mean(!is.na(baseline_df$age_at_onset)) * 100, 2)`%) developed MCI. On average, the baseline age was `r round(mean(baseline_df$current_age))` years. Among women, the proportion of those who were APOE4 carriers was `r round(nrow(filter(baseline_df, sex == "female", apoe4 == "carrier")) / nrow(filter(baseline_df, sex == "female")), 2)`.
+After cleaning the dataset, there were `r nrow(baseline_df)` participants. Of these, `r sum(!is.na(baseline_df$age_at_onset))` (`r round(mean(!is.na(baseline_df$age_at_onset)) * 100, 2)`%) developed MCI. On average, the baseline age was `r round(mean(baseline_df$current_age))` years. Among women, the proportion of those who were APOE4 carriers was `r round(nrow(filter(baseline_df, sex == "female", apoe4 == "carrier")) / nrow(filter(baseline_df, sex == "female")), 2)`.
 
 ```{r}
 amyloid_df =
